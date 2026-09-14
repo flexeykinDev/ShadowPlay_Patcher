@@ -101,6 +101,23 @@ This app writes into another process's memory — the same technique real malwar
 > [!WARNING]
 > Turning off the hidden-window check means windows that asked to stay private (like a password manager) **can now appear in your recordings**. Review clips before sharing them.
 
+## "Windows Defender says it's a virus!"
+
+It isn't — but the warning is expected, and here's the honest reason.
+
+To keep Instant Replay recording, this app writes a few bytes into the running NVIDIA process. That technique — **process injection** — is exactly what a lot of real malware does too, so antivirus engines flag the *behavior* on sight (you'll often see a generic name like `Wacatac`, `HackTool`, or `Injector`). It's a **false positive**: the whole point of the app is to modify NVIDIA, in memory, and the full source is right here for you to read.
+
+A code signature would **not** silence this — signing removes the "unknown publisher" SmartScreen prompt, but Defender flags the injection behavior whether the file is signed or not.
+
+**How to run it anyway:**
+
+- **One-off:** when SmartScreen appears, click **More info → Run anyway**. If Defender quarantines the file, open **Windows Security → Protection history**, find the item, and choose **Allow**.
+- **Permanent:** add an exclusion in **Windows Security → Virus & threat protection → Manage settings → Exclusions** for the folder you keep the exe in.
+
+**Help make the warning go away for everyone:** you can report the false positive to Microsoft at [**microsoft.com/wdsi/filesubmission**](https://www.microsoft.com/wdsi/filesubmission). If they clear it, the file's hash gets whitelisted for all users.
+
+> Only ever do this for a build you trust — either the official [Releases](../../releases) or one you compiled yourself from this source.
+
 ## Build from source
 
 You need Visual Studio 2022/2026 with the C++ workload (Windows SDK + MSVC). No other dependencies.
