@@ -14,6 +14,9 @@ add_compile_definitions(UNICODE _UNICODE)
 # Statically link the C/C++ runtime so the .exe is standalone (no VC++ redist).
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  # Read sources (and encode literals) as UTF-8 so non-ASCII text like the em
+  # dash renders correctly regardless of the system code page.
+  add_compile_options(/utf-8)
 endif()
 
 # Shared implementation, reused by both the app and the test runner.
