@@ -24,14 +24,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure (CMake, Visual Studio 2022, x64)
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+      - name: Set up MSVC (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
 
-      - name: Build (Release)
-        run: cmake --build build --config Release
+      - name: Set up Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v6
+
+      - name: Configure (CMake + Ninja)
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
 
       - name: Run tests
-        run: build\Release\ShadowPlay_Tests.exe
+        run: build\ShadowPlay_Tests.exe
 
       # Optional Authenticode signing. Runs only if the repo has a signing
       # certificate configured in Settings -> Secrets:
@@ -48,7 +56,7 @@ jobs:
                        Sort-Object FullName -Descending | Select-Object -First 1).FullName
           foreach ($exe in 'ShadowPlay_Patcher_GUI.exe','ShadowPlay_Patcher.exe') {
             & $signtool sign /fd SHA256 /f $pfx /p $env:SIGN_PFX_PASSWORD `
-              /tr http://timestamp.digicert.com /td SHA256 "build\Release\$exe"
+              /tr http://timestamp.digicert.com /td SHA256 "build\$exe"
           }
           Remove-Item $pfx -Force
 
@@ -57,8 +65,8 @@ jobs:
         with:
           name: ShadowPlay_Patcher
           path: |
-            build/Release/ShadowPlay_Patcher_GUI.exe
-            build/Release/ShadowPlay_Patcher.exe
+            build/ShadowPlay_Patcher_GUI.exe
+            build/ShadowPlay_Patcher.exe
           if-no-files-found: error
 
   release:
