@@ -6,6 +6,7 @@
 
 A tiny Windows tray app that keeps ShadowPlay / Instant Replay recording — even when a password manager is open or DRM video is playing.
 
+[![CI](https://github.com/flexeykinDev/ShadowPlay_Patcher/actions/workflows/ci.yml/badge.svg)](https://github.com/flexeykinDev/ShadowPlay_Patcher/actions/workflows/ci.yml)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D4?logo=windows&logoColor=white)
 ![Language](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![UI](https://img.shields.io/badge/UI-Win32%20%C2%B7%20Fluent-005FB8)
