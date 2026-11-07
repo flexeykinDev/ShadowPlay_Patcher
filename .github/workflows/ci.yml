@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ rust ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master ]
+    branches: [ rust ]
   workflow_dispatch:
 
 permissions:
@@ -96,15 +96,19 @@ jobs:
 
   release:
     name: Publish release
-    needs: build
+    needs: rust
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
     steps:
       - name: Download built binaries
         uses: actions/download-artifact@v4
         with:
-          name: ShadowPlay_Patcher
+          name: ShadowPlay_Patcher_Rust
           path: dist
+
+      # Same file names as earlier releases, so existing download links keep working.
+      - name: Rename the console build
+        run: Rename-Item dist/ShadowPlay_Patcher.exe ShadowPlay_Patcher_CLI.exe
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
