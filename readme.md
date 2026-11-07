@@ -1,159 +1,73 @@
-<div align="center">
+# ShadowPlay Patcher
 
-# 🎬 ShadowPlay Patcher
-
-**Stop NVIDIA Instant Replay from switching itself off.**
-
-A tiny Windows tray app that keeps ShadowPlay / Instant Replay recording — even when a password manager is open or DRM video is playing.
+Keeps NVIDIA Instant Replay recording when it would otherwise switch itself off.
 
 [![CI](https://github.com/flexeykinDev/ShadowPlay_Patcher/actions/workflows/ci.yml/badge.svg)](https://github.com/flexeykinDev/ShadowPlay_Patcher/actions/workflows/ci.yml)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D4?logo=windows&logoColor=white)
-![Language](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
-![UI](https://img.shields.io/badge/UI-Win32%20%C2%B7%20Fluent-005FB8)
-![Size](https://img.shields.io/badge/download-~320%20KB-success)
-![No deps](https://img.shields.io/badge/dependencies-none-brightgreen)
-![Tests](https://img.shields.io/badge/tests-25%2F25%20passing-brightgreen)
-
-<img src="docs/screenshot.png" alt="ShadowPlay Patcher window" width="380">
-
-</div>
-
----
 
 ## The problem
 
-You finish an amazing clip, hit **Save Replay**… and nothing. Instant Replay quietly turned itself off ten minutes ago and never came back.
+Instant Replay stops recording when it thinks protected content is on screen:
 
-NVIDIA does this on purpose whenever it thinks "protected content" is on screen:
+- A window asks Windows not to be captured. Password managers and the Zoom sharing bar do this. Instant Replay turns off completely and often stays off.
+- A browser plays DRM video and loads the Widevine module. Recording silently pauses while it is loaded.
 
-- 🪟 **A hidden window exists** — password managers (KeePassXC), the Zoom "you're sharing your screen" bar, and similar tools ask Windows *not* to be captured. ShadowPlay sees that and stops **everything**.
-- 🎞️ **DRM video is playing** — Netflix, etc. in a browser loads the Widevine module, and ShadowPlay silently pauses recording while it's there.
+## What it does
 
-The worst part: it often doesn't turn back **on** by itself. You lose clips without knowing.
+It finds the ShadowPlay `nvcontainer.exe` process and patches the two Windows functions those checks use, `GetWindowDisplayAffinity` and `Module32FirstW`, so both checks always come back clean. The change lives only in the memory of the running NVIDIA process. A reboot or NVIDIA restart undoes it, which is why the app can re-apply it on its own.
 
-## The fix
+Details are in [re_research.md](re_research.md).
 
-Instead of babysitting ShadowPlay and flipping it back on (like [AlwaysShadow](https://github.com/Verpous/AlwaysShadow/) does), this tool goes to the source: it makes those two checks always come back "nothing to see here."
+## Use
 
-Nothing is written to disk inside NVIDIA — the change lives in the running process only, so a reboot fully undoes it. That's why the app can **re-apply automatically** whenever NVIDIA restarts.
+Run `ShadowPlay_Patcher_GUI.exe`. It sits in the tray next to the clock. Click Patch now, or turn on the two switches:
 
-## How it works
+- Run when Windows starts
+- Re-apply when NVIDIA restarts
 
-```mermaid
-flowchart LR
-    A["🎬 ShadowPlay Patcher"] -->|locate| B["nvcontainer.exe<br/>(the SPUser one)"]
-    B --> C{"2 checks that<br/>kill recording"}
-    C -->|hidden-window scan| D["USER32<br/>GetWindowDisplayAffinity"]
-    C -->|DRM module scan| E["KERNEL32<br/>Module32FirstW"]
-    A -.->|JMP hook| D
-    A -.->|JMP hook| E
-    D --> F["always reports:<br/>✅ not protected"]
-    E --> G["always reports:<br/>✅ no DRM module"]
-    F --> H["📹 Instant Replay<br/>keeps recording"]
-    G --> H
-```
+If the status says Access denied, a Restart as administrator button appears. Usually it isn't needed, because the NVIDIA process runs as your user.
 
-In plain words: the app finds the right NVIDIA process, then rewrites the very start of those two functions with a small jump to a stub that returns the "all clear" answer. Because it patches standard Windows functions rather than NVIDIA's own code, it survives most driver updates.
+The tray dot shows the state: green is active, amber is not applied yet, grey means the NVIDIA process wasn't found (Instant Replay off or the NVIDIA App not running), red is an error with the reason shown in the window.
 
-Want the deep dive? See [`re_research.md`](re_research.md).
+GUI options: `--minimized` starts in the tray (the autostart entry uses it), `--no-apply` only shows the status and never patches on its own.
 
-## Status at a glance
+There is also a console version, `ShadowPlay_Patcher.exe`. Run it with `--help` for options and exit codes. `--status` shows the state without changing anything.
 
-The tray icon and window pill change color so you always know where you stand:
+## Before you use it
 
-| Dot | Meaning |
-|-----|---------|
-| 🟢 **Active** | Patched — Instant Replay will keep recording |
-| 🟡 **Not applied** | NVIDIA is running but not patched yet |
-| ⚪ **NVIDIA not found** | The ShadowPlay process isn't running |
-| 🔴 **Error** | Something failed (usually needs admin — see below) |
+Windows that asked not to be captured, like a password manager, can now end up in your clips. Check clips before sharing them.
 
-## Download & use
+What has been checked: on a real NVIDIA install, with the patch applied, Instant Replay kept recording and saved a clip while a capture-protected window was open.
 
-1. Grab `ShadowPlay_Patcher_GUI.exe` from the [**Releases**](../../releases) page.
-2. Double-click it. It lives in your system tray (by the clock).
-3. Click **Patch now**, or just turn on the two switches:
-   - **Run when Windows starts** — never think about it again.
-   - **Auto re-apply when NVIDIA restarts** — re-patches within seconds if NVIDIA relaunches.
+What is not guaranteed:
 
-That's it. One file, no installer, no runtime to download.
+- DRM video. The patch only hides the Widevine module from NVIDIA's scan. It was not tested with real DRM playback, and browsers or NVIDIA may detect protected video in other ways. The [Windhawk mod](https://windhawk.net/) with the same idea handles DRM in Chrome more completely.
+- Future NVIDIA updates may change how the checks work.
 
-> [!TIP]
-> If the status turns 🔴 **Error** with "access denied", right-click the exe → **Run as administrator**. NVIDIA's process usually runs as your user, so this often isn't needed.
+## Antivirus
 
-### Command-line flags
+The app writes into another process's memory. Real malware does that too, so Defender and other antivirus tools may flag it as a false positive. Signing the file would not change that, because the behavior is what gets flagged.
 
-| Flag | Effect |
-|------|--------|
-| `--minimized` | Start hidden in the tray (used by the autostart entry). |
-| `--no-apply`  | Observe-only: show status but never patch automatically. |
+If it gets blocked, allow it in Windows Security under Protection history, or add the folder with the exe as an exclusion. You can report the false positive to Microsoft at [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/wdsi/filesubmission). Only do this for a build from the [Releases](../../releases) page or one you built yourself.
 
-There's also a headless `ShadowPlay_Patcher.exe` (console, one-shot patch) if you prefer scripting it.
+The app does not use the network or touch your files. It writes two registry values under your user: the optional Run at startup entry and its own setting in `HKCU\Software\ShadowPlayPatcher`.
 
-## Safety & antivirus
+## Build
 
-This app writes into another process's memory — the same technique real malware uses, so **antivirus may flag it**. Here that behavior is the entire, legitimate point, and the full source is right here for you to read. It:
-
-- ✅ never touches the network, your files, or the registry (except the optional "Run at startup" key **you** toggle),
-- ✅ only modifies the running NVIDIA process, in memory, reversible on reboot,
-- ✅ ships as a single, statically linked executable.
-
-> [!WARNING]
-> Turning off the hidden-window check means windows that asked to stay private (like a password manager) **can now appear in your recordings**. Review clips before sharing them.
-
-## "Windows Defender says it's a virus!"
-
-It isn't — but the warning is expected, and here's the honest reason.
-
-To keep Instant Replay recording, this app writes a few bytes into the running NVIDIA process. That technique — **process injection** — is exactly what a lot of real malware does too, so antivirus engines flag the *behavior* on sight (you'll often see a generic name like `Wacatac`, `HackTool`, or `Injector`). It's a **false positive**: the whole point of the app is to modify NVIDIA, in memory, and the full source is right here for you to read.
-
-A code signature would **not** silence this — signing removes the "unknown publisher" SmartScreen prompt, but Defender flags the injection behavior whether the file is signed or not.
-
-**How to run it anyway:**
-
-- **One-off:** when SmartScreen appears, click **More info → Run anyway**. If Defender quarantines the file, open **Windows Security → Protection history**, find the item, and choose **Allow**.
-- **Permanent:** add an exclusion in **Windows Security → Virus & threat protection → Manage settings → Exclusions** for the folder you keep the exe in.
-
-**Help make the warning go away for everyone:** you can report the false positive to Microsoft at [**microsoft.com/wdsi/filesubmission**](https://www.microsoft.com/wdsi/filesubmission). If they clear it, the file's hash gets whitelisted for all users.
-
-> Only ever do this for a build you trust — either the official [Releases](../../releases) or one you compiled yourself from this source.
-
-## Build from source
-
-You need Visual Studio 2022/2026 with the C++ workload (Windows SDK + MSVC). No other dependencies.
-
-**With CMake (builds the GUI, CLI, and tests):**
+You need a stable Rust toolchain for Windows (MSVC).
 
 ```bash
-cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cargo build --release
+cargo test
 ```
 
-Outputs land in `build/`: `ShadowPlay_Patcher_GUI.exe`, `ShadowPlay_Patcher.exe`, and `ShadowPlay_Tests.exe`.
+The exe files end up in `target/release/`. The tests patch their own test process, not NVIDIA.
 
-**With the Visual Studio solution (CLI only):** open `ShadowPlay_Patcher.sln` and build Release · x64.
-
-## Tests
-
-The project ships a real test runner (`ShadowPlay_Tests.exe`). It doesn't just unit-test the helpers — its integration tests **patch the test process's own** `GetWindowDisplayAffinity` and `Module32FirstW`, then call them to prove the hook actually flips the behavior. Same injection path as the real thing, zero risk to NVIDIA.
-
-```bash
-build\ShadowPlay_Tests.exe
-# === 25/25 checks passed, 0 failed ===
-```
-
-## What's different in this fork
-
-- 🖥️ **Tray + Fluent GUI** — status at a glance, one-click patch, autostart, auto re-apply. No more re-running a console after every reboot.
-- 🐛 **Crash bug fixed** — the original could redirect NVIDIA into empty memory if a write failed; now it bails out cleanly.
-- 🧷 **Safer & more robust** — idempotent (no memory leak on re-run), guards against forwarded exports, tighter memory protection and process rights, null-safe stubs.
-- 🧪 **Test suite** — 25 checks covering the assembler, stubs, utilities, and live self-patching.
+The older C++ version is still in the repository for now. It builds with CMake and Visual Studio: `cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release` and `cmake --build build`.
 
 ## Credits
 
-- Original project by [**furyzenblade**](https://github.com/furyzenblade/ShadowPlay_Patcher) — the research and the working patch are theirs.
-- The same patch also exists as a [**Windhawk mod**](https://windhawk.net/), which handles the browser-DRM-in-Chrome case more completely today.
+Original project and research by [furyzenblade](https://github.com/furyzenblade/ShadowPlay_Patcher).
 
 ## License
 
-This is a fork; licensing follows the upstream project. Use at your own risk — it modifies a running NVIDIA process.
+This is a fork; licensing follows the upstream project. Use at your own risk: it modifies a running NVIDIA process.

@@ -69,6 +69,31 @@ jobs:
             build/ShadowPlay_Patcher.exe
           if-no-files-found: error
 
+  rust:
+    name: Rust build & test (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShadowPlay_Patcher_Rust
+          path: |
+            target/release/ShadowPlay_Patcher_GUI.exe
+            target/release/ShadowPlay_Patcher.exe
+          if-no-files-found: error
+
   release:
     name: Publish release
     needs: build

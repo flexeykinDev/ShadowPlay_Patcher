@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 # CMake build output (this fork)
 /build/
+# Rust build output
+/target/
+# Rust binaries live in src/bin (the Visual Studio rules above ignore bin/)
+!/src/bin/
